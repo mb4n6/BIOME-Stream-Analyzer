@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BIOME Forensische Analyse - Version 1 & 2</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        h1, h2, h3 {
+            color: #2c3e50;
+        }
+        
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+        }
+        
+        .tab {
+            padding: 10px 20px;
+            background-color: #ddd;
+            cursor: pointer;
+            border: 1px solid #ccc;
+            border-bottom: none;
+            border-radius: 5px 5px 0 0;
+            margin-right: 5px;
+        }
+        
+        .tab.active {
+            background-color: #f9f9f9;
+            font-weight: bold;
+        }
+        
+        .tab-content {
+            display: none;
+            background-color: #f9f9f9;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 0 5px 5px 5px;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background-color: white;
+        }
+        
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        
+        th {
+            background-color: #2c3e50;
+            color: white;
+        }
+        
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        
+        .structure-diagram {
+            margin: 30px 0;
+            position: relative;
+        }
+        
+        .structure-box {
+            background-color: #e6f3ff;
+            border: 2px solid #2c3e50;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            position: relative;
+        }
+        
+        .structure-box h3 {
+            margin-top: 0;
+        }
+        
+        .arrow {
+            position: absolute;
+            left: 50%;
+            width: 2px;
+            height: 20px;
+            background-color: #2c3e50;
+        }
+        
+        .arrow:after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: -5px;
+            width: 0;
+            height: 0;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-top: 8px solid #2c3e50;
+        }
+        
+        .hex-viewer {
+            background-color: #f0f0f0;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-family: monospace;
+            white-space: pre;
+            line-height: 1.4;
+            margin: 20px 0;
+        }
+        
+        .highlight {
+            background-color: #ffeb3b;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        
+        .highlight-header {
+            background-color: #4caf50;
+            color: white;
+        }
+        
+        .highlight-payload {
+            background-color: #2196f3;
+            color: white;
+        }
+        
+        .highlight-footer {
+            background-color: #ff9800;
+            color: white;
+        }
+        
+        .toggle-button {
+            background-color: #2c3e50;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 0;
+        }
+        
+        .toggle-button:hover {
+            background-color: #1a252f;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .code-block {
+            background-color: #f8f8f8;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 4px solid #2c3e50;
+            overflow-x: auto;
+            font-family: monospace;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>BIOME Forensische Analyse</h1>
+        <p>Eine detaillierte Erklärung der Datenstruktur in BIOME Version 1 und 2</p>
+    </header>
+    
+    <div class="tabs">
+        <div class="tab active" onclick="switchTab('overview')">Übersicht</div>
+        <div class="tab" onclick="switchTab('biome-v1')">BIOME v1</div>
+        <div class="tab" onclick="switchTab('biome-v2')">BIOME v2</div>
+        <div class="tab" onclick="switchTab('extraction')">Extraktionsanleitung</div>
+    </div>
+    
+    <div id="overview" class="tab-content active">
+        <h2>Was ist BIOME?</h2>
+        <p>BIOME ist ein Binärformat, das zum Speichern von Ereignisprotokollen und Telemetriedaten in Apple-Betriebssystemen (macOS, iOS, iPadOS, watchOS) verwendet wird. Es besteht aus einer Struktur von Streams und Frames, die serialisierte Daten (meistens im Protobuf-Format) enthalten. BIOME dient als Framework zur Erfassung und Analyse von Systemereignissen und -aktivitäten.</p>
+        
+        <h2>Speicherorte von BIOME-Dateien</h2>
+        <div class="structure-box">
+            <h3>macOS</h3>
+            <ul>
+                <li><strong>/private/var/db/biome/</strong> - Systemweite BIOME-Daten</li>
+                <li><strong>/Users/&lt;username&gt;/Library/Biome/</strong> - Benutzerspezifische BIOME-Daten</li>
+            </ul>
+            
+            <h3>iOS/iPadOS</h3>
+            <ul>
+                <li><strong>/private/var/mobile/Library/Biome/</strong> - Hauptspeicherort auf iOS-Geräten</li>
+                <li><strong>/private/var/containers/Data/System/*/Library/Biome/</strong> - Anwendungsspezifische BIOME-Daten</li>
+                <li><strong>/private/var/mobile/Containers/Data/Application/*/Library/Biome/</strong> - App-spezifische BIOME-Daten</li>
+            </ul>
+            
+            <p><em>Hinweis: Diese Speicherorte enthalten in der Regel verschiedene Unterordner, die spezifische Informationstypen wie Aktivitäten, Anwendungsnutzung, Energieverbrauch, Netzwerkaktivitäten und mehr speichern.</em></p>
+        </div>
+        
+        <h2>Versionsunterschiede</h2>
+        <p>BIOME ist in zwei Hauptversionen verfügbar:</p>
+        
+        <div class="structure-diagram">
+            <div class="structure-box">
+                <h3>Version 1</h3>
+                <ul>
+                    <li>56-Byte Stream Header</li>
+                    <li>Mehrere aufeinanderfolgende Frames</li>
+                    <li>Jeder Frame hat einen 32-Byte Header mit Längenangaben und Zeitstempeln</li>
+                    <li>Keine Footer-Struktur</li>
+                </ul>
+            </div>
+            <div class="arrow"></div>
+            <div class="structure-box">
+                <h3>Version 2</h3>
+                <ul>
+                    <li>32-Byte Stream Header</li>
+                    <li>Mehrere aufeinanderfolgende Frames</li>
+                    <li>Frames beginnen mit 8-Byte (CRC + Unknown)</li>
+                    <li>Footer am Ende mit Einträgen für jeden Frame (16 Bytes pro Eintrag)</li>
+                </ul>
+            </div>
+        </div>
+        
+        <h2>Forensische Bedeutung</h2>
+        <p>Die Analyse von BIOME-Dateien ist in der digitalen Forensik wichtig, da:</p>
+        <ul>
+            <li>Zeitstempel wichtige Anhaltspunkte für die Rekonstruktion von Ereignisreihenfolgen liefern</li>
+            <li>Die Payloads relevante Protokolldaten enthalten können, wie Benutzeraktivitäten, App-Nutzung und Systemereignisse</li>
+            <li>Die Dateistruktur Hinweise auf Manipulationen geben kann</li>
+            <li>Auf iOS- und macOS-Geräten wichtige Beweise für Benutzerverhalten und Systemaktivitäten gefunden werden können</li>
+            <li>BIOME-Dateien oft persistieren, selbst wenn andere Protokolle gelöscht wurden</li>
+        </ul>
+    </div>
+    
+    <div id="biome-v1" class="tab-content">
+        <h2>BIOME Version 1 Struktur</h2>
+        
+        <div class="structure-diagram">
+            <div class="structure-box">
+                <h3>Stream Header (56 Bytes)</h3>
+                <p>Beginnt die Datei und enthält allgemeine Informationen</p>
+            </div>
+            <div class="arrow"></div>
+            <div class="structure-box">
+                <h3>Frame 1</h3>
+                <p>Frame Header (32 Bytes) + Payload (variable)</p>
+            </div>
+            <div class="arrow"></div>
+            <div class="structure-box">
+                <h3>Frame 2</h3>
+                <p>Frame Header (32 Bytes) + Payload (variable)</p>
+            </div>
+            <div class="arrow"></div>
+            <div class="structure-box">
+                <h3>Frame n</h3>
+                <p>...</p>
+            </div>
+        </div>
+        
+        <h3>Typische Ordnerstruktur (iOS/macOS)</h3>
+        <div class="structure-box">
+            <p>Bei BIOME-Dateien der Version 1 sind in folgenden Ordnern typische Daten zu finden:</p>
+            <ul>
+                <li><code>persisted.biome</code> - Enthält v1-Streams mit langfristigen Daten</li>
+                <li><code>live_*</code> - Enthält oft aktuelle Aktivitätsdaten</li>
+                <li><code>library</code> - Allgemeine Systembibliotheken</li>
+            </ul>
+        </div>
+        
+        <h3>Stream Header (56 Bytes)</h3>
+        <p>Der Stream Header identifiziert den BIOME-Stream und seine Version. Bei Version 1 beträgt die Länge 56 Bytes.</p>
+        
+        <div class="hex-viewer">
+<span class="highlight-header">D0EC3000 00000000 A5F80AA3 7126C641 09000000 37343332 33353734 34353037 33313300 00000000 00000000 00000000 00000000 <span class="highlight">53454742</span></span>
+        </div>
+        
+        <p>Die <span class="highlight">Magic Bytes "SEGB"</span> (53454742) befinden sich an Position 52-56 und sind ein wichtiger Indikator für BIOME Version 1.</p>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>Byte Offset</th>
+                    <th>Länge</th>
+                    <th>Beschreibung</th>
+                    <th>Beispiel</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>0-51</td>
+                    <td>52 Bytes</td>
+                    <td>Verschiedene Header-Daten inkl. Versionsinformationen</td>
+                    <td>D0EC3000 00000000 ... 00000000</td>
+                </tr>
+                <tr>
+                    <td>52-56</td>
+                    <td>4 Bytes</td>
+                    <td>Magic Bytes "SEGB"</td>
+                    <td>53454742</td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <h3>Frame Header (32 Bytes)</h3>
+        <p>Jeder Frame beginnt mit einem 32-Byte Header, der Informationen über den folgenden Payload enthält.</p>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>Byte Offset</th>
+                    <th>Länge</th>
+                    <th>Beschreibung</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>0-3</td>
+                    <td>2 Bytes</td>
+                    <td>Payload-Länge (gibt an, wie groß der folgende Payload ist)</td>
+                </tr>
+                <tr>
+                    <td>4-7</td>
+                    <td>6 Bytes</td>
+                    <td>Unbekannt (möglicherweise Flags)</td>
+                </tr>
+                <tr>
+                    <td>8-15</td>
+                    <td>8 Bytes</td>
+                    <td>TS Created (Erstellungszeitstempel als Double, Apple NS Date Format)</td>
+                </tr>
+                <tr>
+                    <td>16-23</td>
+                    <td>8 Bytes</td>
+                    <td>TS Modified (Änderungszeitstempel als Double, Apple NS Date Format)</td>
+                </tr>
+                <tr>
+                    <td>24-31</td>
+                    <td>8 Bytes</td>
+                    <td>Unbekannt (möglicherweise Geräte-ID, Offset oder weitere Flags)</td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <h3>Payload</h3>
+        <p>Der Payload eines Frames ist von variabler Größe und wird durch den Payload-Längen-Wert im Frame Header bestimmt. Der Payload enthält typischerweise Protobuf-serialisierte Protokolle/Ereignisse.</p>
+        
+        <button class="toggle-button" onclick="toggleElement('v1-frame-example')">Beispiel eines vollständigen Frames anzeigen</button>
+        
+        <div id="v1-frame-example" class="hidden">
+            <div class="hex-viewer">
+<span class="highlight-header">A4010000 00000000 4E62EB70 2AC6C641 4E62EB70 2AC6C641 00000000 00000000</span> <span class="highlight-payload">0A1E0A19 4E535072 6F636573 73496E66 6F457874 656E7369 6F6E735F 5631121B 0A190A08 6D656D6F 72795F69 6412042E 30B610DD A997F9EA 0218012A 260A2441 42313233 34353637 2D383931 302D3132 33342D35 3637382D 39414243 44454647 35301001 180120D0 E7EF923E 280130B6 83E2C4D4 D095A9B4 02380140 E0B686AB E498FAE6</span>
+            </div>
+            <p>In diesem Beispiel:</p>
+            <ul>
+                <li>Die ersten 32 Bytes (hervorgehoben in grün) sind der Frame Header</li>
+                <li>Die folgenden Bytes (hervorgehoben in blau) sind der Payload</li>
+                <li>Die Payload-Länge beträgt 0x01A4 (420 Bytes) laut dem Frame Header</li>
+            </ul>
+        </div>
+        
+        <h3>4-Byte-Ausrichtung und Padding</h3>
+        <p>Wichtig für die Analyse:</p>
+        <ul>
+            <li>Jeder neue Frame beginnt an einer 4-Byte-Grenze</li>
+            <li>Am Ende eines Frames können Null-Bytes (0x00) als Padding erscheinen</li>
+            <li>Beim Parsen muss auf die nächste 4-Byte-Grenze gesprungen werden, wo Werte ungleich 0 stehen</li>
+        </ul>
+    </div>
+    
+    <div id="biome-v2" class="tab-content">
+        <h2>BIOME Version 2 Struktur</h2>
+        
+        <div class="structure-diagram">
+            <div class="structure-box">
+                <h3>Stream Header (32 Bytes)</h3>
+                <p>Enthält Versionsinformationen</p>
+            </div>
+            <div class="arrow"></div>
+            <div class="structure-box">
+                <h3>Frame 1</h3>
+                <p>CRC (4 Bytes) + Unknown (4 Bytes) + Payload (variable)</p>
+            </div>
+            <div class="arrow"></div>
+            <div class="structure-box">
+                <h3>Frame 2, Frame 3, ...</h3>
+                <p>Weitere Frames folgen demselben Format</p>
+            </div>
+            <div class="arrow"></div>
+            <div class="structure-box">
+                <h3>Footer</h3>
+                <p>Mehrere 16-Byte-Einträge (einer pro Frame)</p>
+            </div>
+        </div>
+        
+        <h3>Typische Ordnerstruktur (iOS/iPadOS)</h3>
+        <div class="structure-box">
+            <p>Bei BIOME-Dateien der Version 2 sind in folgenden Ordnern typische Daten zu finden:</p>
+            <ul>
+                <li><code>persist/</code> - Enthält häufig v2-Streams mit dauerhaften Daten</li>
+                <li><code>local/</code> - App-spezifische lokale Daten</li>
+                <li><code>public/</code> - Öffentlich zugängliche Daten</li>
+                <li><code>private/</code> - Geschützte Daten mit höheren Berechtigungen</li>
+            </ul>
+            <p>In iOS/iPadOS 16+ und macOS Ventura oder neueren Versionen sind v2-Streams häufiger anzutreffen.</p>
+        </div>
+        
+        <h3>Stream Header (32 Bytes)</h3>
+        <p>Bei Version 2 beträgt die Länge des Stream Headers 32 Bytes.</p>
+        
+        <div class="hex-viewer">
+<span class="highlight-header"><span class="highlight">53454742</span> 47000000 F51445E0 7826C641 0A000000 FFFFFFFF 00000000 00000000</span>
+        </div>
+        
+        <p>Die <span class="highlight">Magic Bytes "SEGB"</span> (53454742) befinden sich an Position 0-4 und sind ein wichtiger Indikator für BIOME Version 2.</p>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>Byte Offset</th>
+                    <th>Länge</th>
+                    <th>Beschreibung</th>
+                    <th>Beispiel</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>0-3</td>
+                    <td>4 Bytes</td>
+                    <td>Magic Bytes "SEGB"</td>
+                    <td>53454742</td>
+                </tr>
+                <tr>
+                    <td>4-31</td>
+                    <td>28 Bytes</td>
+                    <td>Zusätzliche Header-Informationen (Version, CRC, Geräte-ID)</td>
+                    <td>47000000 F51445E0 ...</td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <h3>Frame Struktur</h3>
+        <p>Jeder Frame in Version 2 beginnt mit einem 8-Byte-Header, gefolgt vom Payload.</p>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>Feld</th>
+                    <th>Länge</th>
+                    <th>Beschreibung</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>CRC</td>
+                    <td>4 Bytes</td>
+                    <td>Validiert den Payload des Frames</td>
+                </tr>
+                <tr>
+                    <td>Unknown</td>
+                    <td>4 Bytes</td>
+                    <td>Könnte zusätzliche Flags oder Referenzen sein</td>
+                </tr>
+                <tr>
+                    <td>Payload</td>
+                    <td>Variable</td>
+                    <td>Typischerweise Protobuf-Daten. Die Größe wird aus dem Footer-Offset oder der Differenz zwischen aufeinanderfolgenden Offsets abgeleitet</td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <h3>Footer Struktur</h3>
+        <p>Der Footer befindet sich am Ende der Datei und enthält Einträge für jeden Frame. Jeder Eintrag ist 16 Bytes lang.</p>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>Feld</th>
+                    <th>Länge</th>
+                    <th>Beschreibung</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Offset zum Frame-Ende</td>
+                    <td>4 Bytes</td>
+                    <td>Gibt in Bytes an, wo der Frame endet (relativ zum Start des BIOME-Streams, d.h. direkt nach dem 32-Byte-Header)</td>
+                </tr>
+                <tr>
+                    <td>Unknown</td>
+                    <td>4 Bytes</td>
+                    <td>Möglicherweise Flags, Komprimierungsdetails oder partieller CRC</td>
+                </tr>
+                <tr>
+                    <td>Zeitstempel (Double)</td>
+                    <td>8 Bytes</td>
+                    <td>Zeichnet oft eine Schlüsselzeit für den Frame auf (Erstellung, Änderung usw.)</td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <button class="toggle-button" onclick="toggleElement('v2-structure-example')">Beispiel einer BIOME v2-Dateistruktur anzeigen</button>
+        
+        <div id="v2-structure-example" class="hidden">
+            <div class="hex-viewer">
+<span class="highlight-header">53454742 47000000 F51445E0 7826C641 0A000000 FFFFFFFF 00000000 00000000</span> 
+... [Frame-Daten] ...
+<span class="highlight-footer">A0030000 00000000 3D0AD7A3 70C0F641 E8030000 00000000 3D0AD7A3 70C0F641</span>
+            </div>
+            
+            <p>In diesem Beispiel:</p>
+            <ul>
+                <li>Die ersten 32 Bytes sind der Stream Header (hervorgehoben in grün)</li>
+                <li>Die letzten 32 Bytes enthalten Footer-Einträge für zwei Frames (hervorgehoben in orange)</li>
+                <li>Der erste Footer-Eintrag zeigt, dass das Ende des ersten Frames bei Offset 0x03A0 (928 Bytes) liegt</li>
+                <li>Der zweite Footer-Eintrag zeigt, dass das Ende des zweiten Frames bei Offset 0x03E8 (1000 Bytes) liegt</li>
+            </ul>
+        </div>
+        
+        <h3>Berechnung der Frame-Positionen</h3>
+        <p>Um die genauen Positionen der Frames zu berechnen:</p>
+        
+        <div class="code-block">
+# Frame 1:
+Start = 32 (nach Stream Header)
+Ende = Footer[0].Offset (Offset zum Frame-Ende für Frame 1)
+
+# Frame 2:
+Start = Footer[0].Offset
+Ende = Footer[1].Offset
+
+# Frame 3:
+Start = Footer[1].Offset
+Ende = Footer[2].Offset
+
+# usw.
+        </div>
+    </div>
+    
+    <div id="extraction" class="tab-content">
+        <h2>Forensische Extraktionsanleitung</h2>
+        
+        <h3>Schritt 1: Auffinden der BIOME-Daten</h3>
+        <p>Je nach untersuchtem Gerät suchen Sie an folgenden Orten:</p>
+        
+        <div class="structure-box">
+            <h4>macOS</h4>
+            <ul>
+                <li><code>/private/var/db/biome/</code> - Systemweite BIOME-Daten</li>
+                <li><code>/Users/&lt;username&gt;/Library/Biome/</code> - Benutzerspezifische BIOME-Daten</li>
+            </ul>
+            
+            <h4>iOS/iPadOS</h4>
+            <ul>
+                <li><code>/private/var/mobile/Library/Biome/</code> - Hauptspeicherort auf iOS-Geräten</li>
+                <li><code>/private/var/containers/Data/System/*/Library/Biome/</code> - Anwendungsspezifische BIOME-Daten</li>
+                <li><code>/private/var/mobile/Containers/Data/Application/*/Library/Biome/</code> - App-spezifische BIOME-Daten</li>
+            </ul>
+            
+            <p><em>Typische Unterordner umfassen:</em></p>
+            <ul>
+                <li><code>persist</code> - Persistente Daten</li>
+                <li><code>live</code> - Live-Daten</li>
+                <li><code>local</code> - Lokale Daten</li>
+            </ul>
+        </div>
+        
+        <h3>Schritt 2: Erkennung der BIOME-Version</h3>
+        <p>Der erste Schritt bei der Analyse ist die Identifizierung der BIOME-Version:</p>
+        <ul>
+            <li><strong>Version 1:</strong> Magic "SEGB" an Bytes 52-56 des 56-Byte-Headers</li>
+            <li><strong>Version 2:</strong> Magic "SEGB" an Bytes 0-4 des 32-Byte-Headers</li>
+        </ul>
+        
+        <h3>Schritt 3: Extraktion der Frames</h3>
+        
+        <h4>Version 1:</h4>
+        <ol>
+            <li>Lese den 56-Byte Stream Header</li>
+            <li>Für jeden Frame:
+                <ul>
+                    <li>Lese den 32-Byte Frame Header</li>
+                    <li>Extrahiere die Payload-Länge aus den ersten 2 Bytes des Frame Headers</li>
+                    <li>Lese Payload mit der angegebenen Länge</li>
+                    <li>Springe auf die nächste 4-Byte-Grenze und suche nach dem Beginn des nächsten Frames</li>
+                </ul>
+            </li>
+        </ol>
+        
+        <div class="code-block">
+# Pseudocode für Version 1
+position = 56  # Nach dem Stream Header
+while position < file_size:
+    frame_header = file[position:position+32]
+    payload_length = int.from_bytes(frame_header[0:2], byteorder='little')
+    
+    ts_created = struct.unpack('<d', frame_header[8:16])[0]
+    ts_modified = struct.unpack('<d', frame_header[16:24])[0]
+    
+    # Konvertiere Apple NS Datum zu menschenlesbarem Format
+    created_date = convert_apple_nsdate(ts_created)
+    modified_date = convert_apple_nsdate(ts_modified)
+    
+    # Extrahiere Payload
+    payload = file[position+32:position+32+payload_length]
+    
+    # Nächste Position berechnen (4-Byte-ausgerichtet)
+    next_pos = position + 32 + payload_length
+    # Rundung auf die nächste 4-Byte-Grenze
+    next_pos = (next_pos + 3) & ~3
+    
+    # Suche nach dem nächsten Frame (überspringe 0x00-Bytes)
+    while next_pos < file_size and all(b == 0 for b in file[next_pos:next_pos+4]):
+        next_pos += 4
+        
+    position = next_pos
+        </div>
+        
+        <h4>Version 2:</h4>
+        <ol>
+            <li>Lese den 32-Byte Stream Header</li>
+            <li>Lese den Footer vom Ende der Datei (16 Bytes pro Frame, in umgekehrter Reihenfolge)</li>
+            <li>Berechne Start- und Endposition für jeden Frame basierend auf den Footer-Einträgen</li>
+            <li>Für jeden Frame:
+                <ul>
+                    <li>Lese 8-Byte Frame Header (CRC + Unknown)</li>
+                    <li>Extrahiere den Payload bis zur berechneten Endposition</li>
+                </ul>
+            </li>
+        </ol>
+        
+        <div class="code-block">
+# Pseudocode für Version 2
+header_size = 32
+footer_entry_size = 16
+
+# Lese alle Footer-Einträge
+footer_entries = []
+position = file_size - footer_entry_size
+
+while position >= header_size:
+    entry = file[position:position+footer_entry_size]
+    frame_end_offset = int.from_bytes(entry[0:4], byteorder='little')
+    timestamp = struct.unpack('<d', entry[8:16])[0]
+    
+    footer_entries.append({
+        'end_offset': frame_end_offset,
+        'timestamp': convert_apple_nsdate(timestamp)
+    })
+    
+    position -= footer_entry_size
+    # Stoppe, wenn wir einen ungültigen Offset erreichen
+    if frame_end_offset < header_size:
+        break
+
+# Sortiere die Einträge nach End-Offset
+footer_entries.sort(key=lambda x: x['end_offset'])
+
+# Extrahiere Frames
+frame_start = header_size  # Nach dem Stream Header
+for entry in footer_entries:
+    frame_end = entry['end_offset']
+    frame_data = file[frame_start:frame_end]
+    
+    # Die ersten 8 Bytes sind CRC + Unknown
+    crc = frame_data[0:4]
+    unknown = frame_data[4:8]
+    
+    # Der Rest ist Payload
+    payload = frame_data[8:]
+    
+    # Nächster Frame beginnt nach dem aktuellen
+    frame_start = frame_end
+        </div>
+        
+        <h3>Schritt 3: Analyse des Protobuf-Payloads</h3>
+        <p>Der Payload jedes Frames enthält typischerweise Protobuf-serialisierte Daten. Für eine Tiefenanalyse:</p>
+        <ol>
+            <li>Verwende Protobuf-Analyse-Tools, um die Struktur zu untersuchen</li>
+            <li>Versuche, gängige Message-Typen zu identifizieren</li>
+            <li>Extrahiere relevante Informationen aus dem decodierten Protobuf</li>
+        </ol>
+        
+        <h3>Forensisch wichtige Zeitstempel</h3>
+        <p>Die Zeitstempel in BIOME sind im Apple NS Date-Format gespeichert (Nanosekunden seit 01.01.2001):</p>
+        <ul>
+            <li><strong>Version 1:</strong> TS Created (8-15 Bytes) und TS Modified (16-23 Bytes) im Frame Header</li>
+            <li><strong>Version 2:</strong> Zeitstempel (8-Byte Double) in jedem Footer-Eintrag</li>
+        </ul>
+        
+        <div class="code-block">
+# Konvertierung von Apple NS Date zu lesbarem Datum
+def convert_apple_nsdate(timestamp):
+    # Apple Reference Date: 1. Januar 2001, 00:00:00 UTC
+    reference_date = datetime(2001, 1, 1, 0, 0, 0)
+    
+    # Konvertiere Sekunden zu Datetime
+    date = reference_date + timedelta(seconds=timestamp)
+    
+    return date
+        </div>
+    </div>
+    
+    <script>
+        function switchTab(tabId) {
+            // Alle Tab-Inhalte ausblenden
+            var tabContents = document.getElementsByClassName('tab-content');
+            for (var i = 0; i < tabContents.length; i++) {
+                tabContents[i].classList.remove('active');
+            }
+            
+            // Alle Tabs deaktivieren
+            var tabs = document.getElementsByClassName('tab');
+            for (var i = 0; i < tabs.length; i++) {
+                tabs[i].classList.remove('active');
+            }
+            
+            // Gewählten Tab-Inhalt anzeigen
+            document.getElementById(tabId).classList.add('active');
+            
+            // Tab-Button aktivieren
+            var currentTab = document.querySelector('.tab[onclick="switchTab(\'' + tabId + '\')"]');
+            currentTab.classList.add('active');
+        }
+        
+        function toggleElement(elementId) {
+            var element = document.getElementById(elementId);
+            if (element.classList.contains('hidden')) {
+                element.classList.remove('hidden');
+            } else {
+                element.classList.add('hidden');
+            }
+        }
+        
+        // Interaktiver Hex-Viewer mit Highlighting
+        function createInteractiveHexViewer() {
+            var hexViewers = document.querySelectorAll('.hex-viewer');
+            for (var i = 0; i < hexViewers.length; i++) {
+                var viewer = hexViewers[i];
+                var content = viewer.textContent;
+                
+                // Füge Tooltips hinzu
+                viewer.addEventListener('mouseover', function(e) {
+                    if (e.target.classList.contains('highlight')) {
+                        e.target.title = "Wichtiger Indikator für die BIOME-Version";
+                    }
+                });
+            }
+        }
+        
+        // Initialisierung beim Laden der Seite
+        window.onload = function() {
+            createInteractiveHexViewer();
+        };
+    </script>
+    
+    <footer style="margin-top: 50px; padding: 20px; background-color: #eee; text-align: center; border-radius: 5px;">
+        <p>Marc Brandt, HfPolBW, 2025</p>
+    </footer>
+</body>
+</html>
