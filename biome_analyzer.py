@@ -30,7 +30,7 @@ def main():
             return 1
     
     print("="*60)
-    print("BIOME Stream Analyzer v3.5.1")
+    print("BIOME Stream Analyzer v3.5.4")
     print("Author: Marc Brandt (mb4n6)")
     print("="*60)
     

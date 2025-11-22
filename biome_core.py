@@ -27,10 +27,10 @@ def calculate_entropy(data: bytes) -> float:
             ent -= p * math.log(p, 2)
     return float(ent)
 
-def hex_preview(data: bytes, length: int = 96) -> str:
+def hex_preview(data: bytes, length: int = 256) -> str:
     return " ".join(f"{b:02X}" for b in data[:length]) if data else ""
 
-def ascii_preview(data: bytes, length: int = 96) -> str:
+def ascii_preview(data: bytes, length: int = 256) -> str:
     if not data:
         return ""
     return "".join(chr(b) if 32 <= b <= 126 else "." for b in data[:length])
@@ -111,8 +111,8 @@ class BinaryObjectDetector:
                 'size': len(data),
                 'entropy': round(ent, 2),
                 'offset': 0,
-                'hex_preview': hex_preview(data, 64),
-                'ascii_preview': ascii_preview(data, 64)
+                'hex_preview': hex_preview(data, 256),
+                'ascii_preview': ascii_preview(data, 256)
             })
         
         for sig, name in BINARY_SIGS.items():
@@ -130,8 +130,8 @@ class BinaryObjectDetector:
                             'size': remaining,
                             'entropy': round(chunk_ent, 2),
                             'offset': idx,
-                            'hex_preview': hex_preview(data[idx:idx+64], 64),
-                            'ascii_preview': ascii_preview(data[idx:idx+64], 64)
+                            'hex_preview': hex_preview(data[idx:idx+256], 256),
+                            'ascii_preview': ascii_preview(data[idx:idx+256], 256)
                         })
                 pos = idx + len(sig)
         
@@ -388,6 +388,7 @@ class BIOMEAnalyzer:
             return False
         
         try:
+            # Parse footer entries (working backwards from end of file)
             entries = []
             i = n - 16
             
@@ -414,61 +415,88 @@ class BIOMEAnalyzer:
                     print("No valid footer entries found")
                 return False
             
-            count = len(entries)
-            footer_start = n - 16 * count
+            # Sort entries by relative offset (ascending order)
             entries_sorted = sorted(entries, key=lambda x: x[1])
             
-            prev_rel = 0
             frame_idx = 0
             
-            for file_off, end_rel, unk, ts in entries_sorted:
+            for idx, (file_off, end_rel, unk, ts) in enumerate(entries_sorted):
                 if frame_idx >= self.max_frames:
                     break
                 
-                frame_start = BASE + prev_rel
+                # Calculate frame start
+                if idx == 0:
+                    # First frame starts at BASE (32)
+                    frame_start = BASE
+                else:
+                    # Subsequent frames: end of previous frame + padding
+                    prev_end_rel = entries_sorted[idx - 1][1]
+                    prev_frame_end = BASE + prev_end_rel
+                    
+                    # Detect padding bytes (0x00) after previous frame
+                    padding = 0
+                    while prev_frame_end + padding < len(data) and data[prev_frame_end + padding] == 0:
+                        padding += 1
+                        if padding > 16:  # Sanity check
+                            break
+                    
+                    frame_start = prev_frame_end + padding
+                
+                # Calculate frame end (without padding)
                 frame_end = BASE + end_rel
                 
-                if frame_end > footer_start or frame_start + 9 > frame_end:
-                    prev_rel = end_rel
+                # Validate frame boundaries
+                if frame_start + 8 > frame_end or frame_end > len(data):
+                    if self.verbose:
+                        print(f"Frame {frame_idx}: Invalid boundaries (start={frame_start}, end={frame_end})")
                     continue
                 
+                # Read 8-byte frame header (CRC32 + Unknown)
                 try:
                     crc32_hdr, unknown1 = struct.unpack('<II', data[frame_start:frame_start+8])
                 except:
-                    prev_rel = end_rel
+                    if self.verbose:
+                        print(f"Frame {frame_idx}: Failed to read header at {frame_start}")
                     continue
                 
+                # Extract payload
                 payload_offset = frame_start + 8
-                payload_len = frame_end - payload_offset
-                
-                if payload_offset + payload_len > len(data):
-                    prev_rel = end_rel
-                    continue
-                
                 payload = data[payload_offset:frame_end]
+                payload_len = len(payload)
                 
+                # Calculate and verify CRC32
                 calc_crc = zlib.crc32(payload) & 0xFFFFFFFF
+                crc_ok = (calc_crc == crc32_hdr)
                 
+                # Create frame info
                 frame = FrameInfo(
                     version=2,
                     index=frame_idx,
                     offset=frame_start,
                     payload_offset=payload_offset,
+                    payload_length=payload_len,
                     size=payload_len,
                     timestamp=ts if isinstance(ts, (int, float)) and -3.5e8 <= ts <= 1.58e9 else None,
                     datetime_obj=apple_time_to_dt(ts) if isinstance(ts, (int, float)) and -3.5e8 <= ts <= 1.58e9 else None,
                     crc=crc32_hdr,
-                    crc_ok=(calc_crc == crc32_hdr),
+                    crc_ok=crc_ok,
                     payload=payload if len(payload) < 1024*1024 else None,
                     file_hash=self.file_hash
                 )
                 
+                # Analyze payload
                 frame.binary_objects = self.binary_detector.detect(payload)
                 frame.protobuf_data = self.protobuf_analyzer.parse(payload)
                 self.frames.append(frame)
                 
-                prev_rel = end_rel
+                if self.verbose:
+                    padding_info = f" (padding: {padding} bytes)" if idx > 0 and padding > 0 else ""
+                    print(f"Frame {frame_idx}: offset={frame_start}, end={frame_end}, payload={payload_len} bytes, CRC={'OK' if crc_ok else 'FAIL'}{padding_info}")
+                
                 frame_idx += 1
+            
+            if self.verbose:
+                print(f"✓ Parsed {len(self.frames)} V2 frames")
             
             return len(self.frames) > 0
             

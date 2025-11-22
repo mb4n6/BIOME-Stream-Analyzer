@@ -113,4 +113,4 @@ Issues and pull requests welcome on GitHub.
 
 ## Version
 
-Current: v3.5.1
+Current: v3.5.5

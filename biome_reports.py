@@ -101,11 +101,11 @@ class HTMLReport:
         .hex-ascii {{ color: #4ec9b0; }}
         .protobuf-data {{ margin-top: 20px; }}
         .protobuf-data h4 {{ color: #495057; margin-bottom: 15px; font-size: 16px; }}
-        .pb-fields {{ background: #e7f3ff; border: 1px solid #2196F3; border-radius: 4px; padding: 15px; max-height: 400px; overflow-y: auto; }}
+        .pb-fields {{ background: #e7f3ff; border: 1px solid #2196F3; border-radius: 4px; padding: 15px; max-height: none; overflow-y: auto; }}
         .pb-field {{ padding: 6px 0; border-bottom: 1px solid #b3d9ff; }}
         .pb-field:last-child {{ border-bottom: none; }}
         .pb-key {{ font-weight: bold; color: #1976D2; margin-right: 8px; }}
-        .pb-value {{ color: #333; font-family: 'Courier New', monospace; font-size: 12px; word-break: break-all; }}
+        .pb-value {{ color: #333; font-family: 'Courier New', monospace; font-size: 12px; word-break: break-all; white-space: pre-wrap; }}
         .footer {{ padding: 20px; text-align: center; color: #6c757d; font-size: 13px; border-top: 1px solid #dee2e6; }}
     </style>
 </head>
@@ -149,7 +149,7 @@ class HTMLReport:
         </div>
         
         <div class="footer">
-            BIOME Stream Analyzer v3.5.1 | Author: Marc Brandt (mb4n6)
+            BIOME Stream Analyzer v3.5.4 | Author: Marc Brandt (mb4n6)
         </div>
     </div>
     
@@ -760,8 +760,7 @@ class HTMLReport:
             pb_items = []
             for key, value in frame.protobuf_data.items():
                 value_str = str(value)
-                if len(value_str) > 200:
-                    value_str = value_str[:200] + '...'
+                # Vollständige Ausgabe ohne Kürzung
                 pb_items.append(f'<div class="pb-field"><span class="pb-key">{html.escape(key)}:</span> <span class="pb-value">{html.escape(value_str)}</span></div>')
             
             protobuf_html = f'''
@@ -818,7 +817,7 @@ class HTMLReport:
             <div class="controls">
                 {"".join(buttons)}
             </div>
-            <div class="hex-preview">{html.escape(obj.get('hex_preview', ''))[:96]}</div>
+            <div class="hex-preview">{html.escape(obj.get('hex_preview', ''))}</div>
         </div>'''
     
     def _format_size(self, size):
