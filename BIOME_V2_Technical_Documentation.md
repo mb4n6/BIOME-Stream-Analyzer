@@ -1,7 +1,7 @@
 # BIOME Stream Version 2 - Technische Dokumentation
 
 **Autor:** Marc Brandt (mb4n6)  
-**Datum:** November 2024  
+**Datum:** November 2025 
 **Version:** 3.5.1
 
 ## Überblick
