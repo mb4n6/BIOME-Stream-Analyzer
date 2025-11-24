@@ -98,19 +98,6 @@ Access via GUI: **Help → Learn: BIOME Forensics**
 
 MIT License - See LICENSE file for details
 
-## Forensic Use
-
-This tool is designed for digital forensics and security research. BIOME streams contain valuable artifacts from iOS applications including:
-
-- App intents and interactions
-- User behavior patterns
-- System events and metrics
-- Contextual metadata
-
-## Contributing
-
-Issues and pull requests welcome on GitHub.
-
 ## Version
 
 Current: v3.5.5
