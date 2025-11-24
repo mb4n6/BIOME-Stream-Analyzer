@@ -25,9 +25,9 @@ pip install pillow --break-system-packages  # Optional: for image viewing
 
 ## Usage
 
-### GUI Mode
+### GUI Version
 ```bash
-python biome_analyzer.py --gui
+python biome_gui.py
 ```
 
 ### Command Line
@@ -43,6 +43,9 @@ python biome_analyzer.py file.biome --output-dir ./reports
 
 # Verbose output
 python biome_analyzer.py file.biome --frames 100 -v
+
+# GUI Mode
+python biome_analyzer.py --gui
 ```
 
 ### Options
