@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BIOME Forensic Analysis - Version 1 & 2</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        h1, h2, h3 {
+            color: #2c3e50;
+        }
+        
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+        }
+        
+        .tab {
+            padding: 10px 20px;
+            background-color: #ddd;
+            cursor: pointer;
+            border: 1px solid #ccc;
+            border-bottom: none;
+            border-radius: 5px 5px 0 0;
+            margin-right: 5px;
+        }
+        
+        .tab.active {
+            background-color: #f9f9f9;
+            font-weight: bold;
+        }
+        
+        .tab-content {
+            display: none;
+            background-color: #f9f9f9;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 0 5px 5px 5px;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background-color: white;
+        }
+        
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        
+        th {
+            background-color: #2c3e50;
+            color: white;
+        }
+        
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        
+        .structure-diagram {
+            margin: 30px 0;
+            position: relative;
+        }
+        
+        .structure-box {
+            background-color: #e6f3ff;
+            border: 2px solid #2c3e50;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            position: relative;
+        }
+        
+        .structure-box h3 {
+            margin-top: 0;
+        }
+        
+        .arrow {
+            position: absolute;
+            left: 50%;
+            width: 2px;
+            height: 20px;
+            background-color: #2c3e50;
+        }
+        
+        .arrow:after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: -5px;
+            width: 0;
+            height: 0;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-top: 8px solid #2c3e50;
+        }
+        
+        .hex-viewer {
+            background-color: #f0f0f0;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-family: monospace;
+            white-space: pre;
+            line-height: 1.4;
+            margin: 20px 0;
+        }
+        
+        .highlight {
+            background-color: #ffeb3b;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        
+        .highlight-header {
+            background-color: #4caf50;
+            color: white;
+        }
+        
+        .highlight-payload {
+            background-color: #2196f3;
+            color: white;
+        }
+        
+        .highlight-footer {
+            background-color: #ff9800;
+            color: white;
+        }
+        
+        .toggle-button {
+            background-color: #2c3e50;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 0;
+        }
+        
+        .toggle-button:hover {
+            background-color: #1a252f;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .code-block {
+            white-space: pre;
+            background-color: #f8f8f8;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 4px solid #2c3e50;
+            overflow-x: auto;
+            font-family: monospace;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>BIOME Forensic Analysis</h1>
+        <p>A detailed explanation of the data structure in BIOME Version 1 and 2</p>
+    </header>
+    
+    <div class="tabs">
+        <div class="tab active" onclick="switchTab('overview')">Overview</div>
+        <div class="tab" onclick="switchTab('biome-v1')">BIOME v1</div>
+        <div class="tab" onclick="switchTab('biome-v2')">BIOME v2</div>
+        <div class="tab" onclick="switchTab('extraction')">Extraction Guide</div>
+    </div>
+    
+    <div id="overview" class="tab-content active">
+        <h2>What is BIOME?</h2>
+        <p>BIOME is a binary format used for storing event logs and telemetry data in Apple operating systems (macOS, iOS, iPadOS, watchOS). It consists of a structure of streams and frames containing serialized data (mostly in Protobuf format). BIOME serves as a framework for capturing and analyzing system events and activities.</p>
+        
+        <h2>Storage Locations of BIOME Files</h2>
+        <div class="structure-box">
+            <h3>macOS</h3>
+            <ul>
+                <li><strong>/private/var/db/biome/</strong> - System-wide BIOME data</li>
+                <li><strong>/Users/&lt;username&gt;/Library/Biome/</strong> - User-specific BIOME data</li>
+            </ul>
+            
+            <h3>iOS/iPadOS</h3>
+            <ul>
+                <li><strong>/private/var/mobile/Library/Biome/</strong> - Main storage location on iOS devices</li>
+                <li><strong>/private/var/containers/Data/System/*/Library/Biome/</strong> - Application-specific BIOME data</li>
+                <li><strong>/private/var/mobile/Containers/Data/Application/*/Library/Biome/</strong> - App-specific BIOME data</li>
+            </ul>
+            
+            <p><em>Note: These storage locations typically contain various subdirectories that store specific types of information such as activities, application usage, power consumption, network activities, and more.</em></p>
+        </div>
+        
+        <h2>Version Differences</h2>
+        <p>BIOME is available in two main versions:</p>
+        
+        <div class="structure-diagram">
+            <div class="structure-box">
+                <h3>Version 1</h3>
+                <ul>
+                    <li>56-byte stream header</li>
+                    <li>Multiple consecutive frames</li>
+                    <li>Each frame has a 32-byte header with length information and timestamps</li>
+                    <li>No footer structure</li>
+                </ul>
+            </div>
+            <div class="arrow"></div>
+            <div class="structure-box">
+                <h3>Version 2</h3>
+                <ul>
+                    <li>32-byte stream header (more compact)</li>
+                    <li>Multiple frames (variable length)</li>
+                    <li>Each frame has an 8-byte header (CRC + Unknown)</li>
+                    <li>Footer at the end of the file (16 bytes per frame, in reverse order)</li>
+                </ul>
+            </div>
+        </div>
+        
+        <h2>General Structure</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Component</th>
+                    <th>Version 1</th>
+                    <th>Version 2</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Stream Header</td>
+                    <td>56 bytes</td>
+                    <td>32 bytes</td>
+                </tr>
+                <tr>
+                    <td>Magic Bytes</td>
+                    <td>"SEGB" at position 52-56</td>
+                    <td>"SEGB" at position 0-4</td>
+                </tr>
+                <tr>
+                    <td>Frame Header</td>
+                    <td>32 bytes</td>
+                    <td>8 bytes (CRC + Unknown)</td>
+                </tr>
+                <tr>
+                    <td>Footer</td>
+                    <td>None</td>
+                    <td>16 bytes per frame (reverse order)</td>
+                </tr>
+                <tr>
+                    <td>Payload</td>
+                    <td>Protobuf (variable length)</td>
+                    <td>Protobuf (variable length)</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    
+    <div id="biome-v1" class="tab-content">
+        <h2>BIOME Version 1 - Detailed Structure</h2>
+        
+        <h3>1. Stream Header (56 bytes)</h3>
+        <p>The stream header is the first 56 bytes of a BIOME v1 file and contains fundamental information about the data stream.</p>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>Offset</th>
+                    <th>Size</th>
+                    <th>Description</th>
+                    <th>Example</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>0-3</td>
+                    <td>4 bytes</td>
+                    <td>Unknown (possibly file version or type)</td>
+                    <td>00 00 00 00</td>
+                </tr>
+                <tr>
+                    <td>4-51</td>
+                    <td>48 bytes</td>
+                    <td>Unknown/Reserved data</td>
+                    <td>Various values</td>
+                </tr>
+                <tr>
+                    <td>52-55</td>
+                    <td>4 bytes</td>
+                    <td><strong>Magic Bytes: "SEGB"</strong></td>
+                    <td>53 45 47 42</td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <button class="toggle-button" onclick="toggleElement('hex-v1-header')">Show/Hide Hex Example - Stream Header</button>
+        <div id="hex-v1-header" class="hex-viewer hidden">
+Offset   00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F  ASCII
+------   -----------------------------------------------  ----------------
+0x0000   00 00 00 00 XX XX XX XX XX XX XX XX XX XX XX XX  ................
+0x0010   XX XX XX XX XX XX XX XX XX XX XX XX XX XX XX XX  ................
+0x0020   XX XX XX XX XX XX XX XX XX XX XX XX XX XX XX XX  ................
+0x0030   XX XX XX XX <span class="highlight">53 45 47 42</span>                          XXXX<span class="highlight">SEGB</span>
+        </div>
+        
+        <h3>2. Frame Structure (repeating)</h3>
+        <p>After the stream header, multiple frames follow in sequence. Each frame consists of a 32-byte header followed by the payload.</p>
+        
+        <h4>Frame Header (32 bytes)</h4>
+        <table>
+            <thead>
+                <tr>
+                    <th>Offset</th>
+                    <th>Size</th>
+                    <th>Description</th>
+                    <th>Data Type</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>0-1</td>
+                    <td>2 bytes</td>
+                    <td><strong>Payload Length</strong> (little-endian)</td>
+                    <td>uint16</td>
+                </tr>
+                <tr>
+                    <td>2-3</td>
+                    <td>2 bytes</td>
+                    <td>Unknown (possibly CRC or flags)</td>
+                    <td>uint16</td>
+                </tr>
+                <tr>
+                    <td>4-7</td>
+                    <td>4 bytes</td>
+                    <td>Unknown</td>
+                    <td>-</td>
+                </tr>
+                <tr>
+                    <td>8-15</td>
+                    <td>8 bytes</td>
+                    <td><strong>Timestamp Created</strong> (Apple NS Date)</td>
+                    <td>double</td>
+                </tr>
+                <tr>
+                    <td>16-23</td>
+                    <td>8 bytes</td>
+                    <td><strong>Timestamp Modified</strong> (Apple NS Date)</td>
+                    <td>double</td>
+                </tr>
+                <tr>
+                    <td>24-31</td>
+                    <td>8 bytes</td>
+                    <td>Unknown (possibly reserved)</td>
+                    <td>-</td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <p><strong>Important:</strong> Apple NS Date is a double value representing seconds since January 1, 2001, 00:00:00 UTC.</p>
+        
+        <button class="toggle-button" onclick="toggleElement('hex-v1-frame')">Show/Hide Hex Example - Complete Frame</button>
+        <div id="hex-v1-frame" class="hex-viewer hidden">
+<span class="highlight-header">Frame Header (32 bytes):</span>
+Offset   00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F  ASCII
+------   -----------------------------------------------  ----------------
+0x0038   <span class="highlight">A4 00</span> F3 01 00 00 00 00 <span class="highlight">41 8D DA 59 E6 A6 C5 41</span>  ..ó.....A.ÚYæ¦ÅA
+0x0048   <span class="highlight">41 8D DA 59 E6 A6 C5 41</span> 00 00 00 00 00 00 00 00  A.ÚYæ¦ÅA........
+
+<span class="highlight-payload">Payload (164 bytes = 0xA4):</span>
+0x0058   0A 15 62 72 69 64 67 65 2E 61 63 74 69 76 69 74  ..bridge.activit
+0x0068   79 2E 63 72 65 61 74 65 64 10 00 18 01 22 0A 08  y.created...."..
+... (continues for 164 bytes)
+
+<span class="highlight">Padding (4-byte alignment):</span>
+0x00FC   00 00 00 00                                      ....
+        </div>
+        
+        <h4>Payload</h4>
+        <p>The payload follows directly after the 32-byte frame header and has the length specified in bytes 0-1 of the frame header. The payload typically contains Protobuf-serialized data.</p>
+        
+        <h3>Important Characteristics of Version 1</h3>
+        <ul>
+            <li><strong>4-byte alignment:</strong> Frames are aligned on 4-byte boundaries, with potential padding bytes (0x00) between frames</li>
+            <li><strong>Sequential processing:</strong> Frames must be read sequentially from start to finish</li>
+            <li><strong>No footer:</strong> Unlike Version 2, there is no footer structure for quick frame access</li>
+            <li><strong>Timestamps directly in frame header:</strong> Created and modified timestamps are stored directly in each frame header</li>
+        </ul>
+    </div>
+    
+    <div id="biome-v2" class="tab-content">
+        <h2>BIOME Version 2 - Detailed Structure</h2>
+        
+        <h3>1. Stream Header (32 bytes)</h3>
+        <p>The stream header in Version 2 is more compact and begins directly with the magic bytes.</p>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>Offset</th>
+                    <th>Size</th>
+                    <th>Description</th>
+                    <th>Example</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>0-3</td>
+                    <td>4 bytes</td>
+                    <td><strong>Magic Bytes: "SEGB"</strong></td>
+                    <td>53 45 47 42</td>
+                </tr>
+                <tr>
+                    <td>4-7</td>
+                    <td>4 bytes</td>
+                    <td>Unknown (possibly version or flags)</td>
+                    <td>02 00 00 00</td>
+                </tr>
+                <tr>
+                    <td>8-31</td>
+                    <td>24 bytes</td>
+                    <td>Unknown/Reserved data</td>
+                    <td>Various values</td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <button class="toggle-button" onclick="toggleElement('hex-v2-header')">Show/Hide Hex Example - Stream Header</button>
+        <div id="hex-v2-header" class="hex-viewer hidden">
+Offset   00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F  ASCII
+------   -----------------------------------------------  ----------------
+0x0000   <span class="highlight">53 45 47 42</span> 02 00 00 00 XX XX XX XX XX XX XX XX  <span class="highlight">SEGB</span>............
+0x0010   XX XX XX XX XX XX XX XX XX XX XX XX XX XX XX XX  ................
+        </div>
+        
+        <h3>2. Frame Structure (variable)</h3>
+        <p>Version 2 frames have a simpler header structure, and the actual lengths and positions are defined by the footer.</p>
+        
+        <h4>Frame Header (8 bytes)</h4>
+        <table>
+            <thead>
+                <tr>
+                    <th>Offset</th>
+                    <th>Size</th>
+                    <th>Description</th>
+                    <th>Data Type</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>0-3</td>
+                    <td>4 bytes</td>
+                    <td><strong>CRC32 Checksum</strong> (possibly of payload)</td>
+                    <td>uint32</td>
+                </tr>
+                <tr>
+                    <td>4-7</td>
+                    <td>4 bytes</td>
+                    <td>Unknown (possibly additional flags)</td>
+                    <td>uint32</td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <h4>Payload</h4>
+        <p>The payload follows directly after the 8-byte frame header. The length is not specified in the frame header itself but is calculated from the footer entries.</p>
+        
+        <h3>3. Footer Structure (at end of file)</h3>
+        <p>The footer is the key feature of Version 2. It is stored at the END of the file and contains entries for each frame in REVERSE order.</p>
+        
+        <h4>Footer Entry (16 bytes per frame)</h4>
+        <table>
+            <thead>
+                <tr>
+                    <th>Offset</th>
+                    <th>Size</th>
+                    <th>Description</th>
+                    <th>Data Type</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>0-3</td>
+                    <td>4 bytes</td>
+                    <td><strong>Frame End Offset</strong> (from start of file)</td>
+                    <td>uint32 (little-endian)</td>
+                </tr>
+                <tr>
+                    <td>4-7</td>
+                    <td>4 bytes</td>
+                    <td>Unknown (possibly flags or reserved)</td>
+                    <td>uint32</td>
+                </tr>
+                <tr>
+                    <td>8-15</td>
+                    <td>8 bytes</td>
+                    <td><strong>Timestamp</strong> (Apple NS Date)</td>
+                    <td>double</td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <p><strong>Important:</strong> The footer entries are stored in REVERSE order - the last frame is stored first in the footer, the first frame is stored last!</p>
+        
+        <button class="toggle-button" onclick="toggleElement('hex-v2-footer')">Show/Hide Hex Example - Footer</button>
+        <div id="hex-v2-footer" class="hex-viewer hidden">
+<span class="highlight-footer">Footer entries (reading from end of file backwards):</span>
+
+Last 16 bytes (Frame N):
+Offset   00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F
+------   -----------------------------------------------
+EOF-16   <span class="highlight">A4 12 00 00</span> 00 00 00 00 <span class="highlight">41 8D DA 59 E6 A6 C5 41</span>
+
+Previous 16 bytes (Frame N-1):
+EOF-32   <span class="highlight">08 0E 00 00</span> 00 00 00 00 <span class="highlight">41 8D DA 59 E6 A6 C5 41</span>
+
+Previous 16 bytes (Frame N-2):
+EOF-48   <span class="highlight">C8 09 00 00</span> 00 00 00 00 <span class="highlight">41 8D DA 59 E6 A6 C5 41</span>
+
+... (continues backwards)
+        </div>
+        
+        <h3>Important Characteristics of Version 2</h3>
+        <ul>
+            <li><strong>Footer-based indexing:</strong> Frame positions are stored in the footer, allowing direct access</li>
+            <li><strong>Compact header:</strong> Only 32 bytes for the stream header (instead of 56)</li>
+            <li><strong>Simple frame header:</strong> Only 8 bytes per frame (CRC + Unknown)</li>
+            <li><strong>Reverse order footer:</strong> Footer entries are stored in reverse chronological order</li>
+            <li><strong>Efficient random access:</strong> Individual frames can be read directly using the footer</li>
+        </ul>
+        
+        <h3>Determining Frame Positions</h3>
+        <p>To determine the exact position and length of each frame:</p>
+        
+        <div class="code-block">
+# Frame N (last frame):
+Start = Footer[0].Offset - (Payload_Length + 8)
+End = Footer[0].Offset
+
+# Frame N-1:
+Start = Footer[1].Offset - (Payload_Length + 8)
+End = Footer[1].Offset
+
+# First Frame:
+Start = 32 (after stream header)
+End = Footer[last_entry].Offset
+        </div>
+        
+        <p><strong>Note:</strong> The frame start position can be calculated by subtracting the payload length (which you get by reading the frame) plus the 8-byte header from the end offset.</p>
+        
+        <h3>Reading Algorithm for Version 2</h3>
+        <div class="code-block">
+1. Read stream header (32 bytes)
+2. Jump to end of file
+3. Read footer entries backwards (16 bytes each) until an invalid offset is reached
+4. Sort footer entries by end offset (ascending)
+5. For each frame:
+   - Start = previous frame's end (or 32 for first frame)
+   - End = current footer entry's offset
+   - Read frame data from Start to End
+   - First 8 bytes = Frame Header (CRC + Unknown)
+   - Remaining bytes = Payload
+
+# Frame 1:
+Start = 32 (stream header size)
+End = Footer[last_entry].Offset
+
+# Frame 2:
+Start = Footer[0].Offset
+End = Footer[1].Offset
+
+# Frame 3:
+Start = Footer[1].Offset
+End = Footer[2].Offset
+
+# etc.
+        </div>
+    </div>
+    
+    <div id="extraction" class="tab-content">
+        <h2>Forensic Extraction Guide</h2>
+        
+        <h3>Step 1: Locating BIOME Data</h3>
+        <p>Depending on the device being examined, search in the following locations:</p>
+        
+        <div class="structure-box">
+            <h4>macOS</h4>
+            <ul>
+                <li><code>/private/var/db/biome/</code> - System-wide BIOME data</li>
+                <li><code>/Users/&lt;username&gt;/Library/Biome/</code> - User-specific BIOME data</li>
+            </ul>
+            
+            <h4>iOS/iPadOS</h4>
+            <ul>
+                <li><code>/private/var/mobile/Library/Biome/</code> - Main storage location on iOS devices</li>
+                <li><code>/private/var/containers/Data/System/*/Library/Biome/</code> - Application-specific BIOME data</li>
+                <li><code>/private/var/mobile/Containers/Data/Application/*/Library/Biome/</code> - App-specific BIOME data</li>
+            </ul>
+            
+            <p><em>Typical subdirectories include:</em></p>
+            <ul>
+                <li><code>persist</code> - Persistent data</li>
+                <li><code>live</code> - Live data</li>
+                <li><code>local</code> - Local data</li>
+            </ul>
+        </div>
+        
+        <h3>Step 2: Detecting BIOME Version</h3>
+        <p>The first step in analysis is identifying the BIOME version:</p>
+        <ul>
+            <li><strong>Version 1:</strong> Magic "SEGB" at bytes 52-56 of the 56-byte header</li>
+            <li><strong>Version 2:</strong> Magic "SEGB" at bytes 0-4 of the 32-byte header</li>
+        </ul>
+        
+        <h3>Step 3: Extracting Frames</h3>
+        
+        <h4>Version 1:</h4>
+        <ol>
+            <li>Read the 56-byte stream header</li>
+            <li>For each frame:
+                <ul>
+                    <li>Read the 32-byte frame header</li>
+                    <li>Extract the payload length from the first 2 bytes of the frame header</li>
+                    <li>Read payload with the specified length</li>
+                    <li>Jump to the next 4-byte boundary and search for the beginning of the next frame</li>
+                </ul>
+            </li>
+        </ol>
+        
+        <div class="code-block">
+# Pseudocode for Version 1
+position = 56  # After the stream header
+while position < file_size:
+    frame_header = file[position:position+32]
+    payload_length = int.from_bytes(frame_header[0:2], byteorder='little')
+    
+    ts_created = struct.unpack('<d', frame_header[8:16])[0]
+    ts_modified = struct.unpack('<d', frame_header[16:24])[0]
+    
+    # Convert Apple NS Date to human-readable format
+    created_date = convert_apple_nsdate(ts_created)
+    modified_date = convert_apple_nsdate(ts_modified)
+    
+    # Extract payload
+    payload = file[position+32:position+32+payload_length]
+    
+    # Calculate next position (4-byte aligned)
+    next_pos = position + 32 + payload_length
+    # Round to next 4-byte boundary
+    next_pos = (next_pos + 3) & ~3
+    
+    # Search for next frame (skip 0x00 bytes)
+    while next_pos < file_size and all(b == 0 for b in file[next_pos:next_pos+4]):
+        next_pos += 4
+        
+    position = next_pos
+        </div>
+        
+        <h4>Version 2:</h4>
+        <ol>
+            <li>Read the 32-byte stream header</li>
+            <li>Read the footer from the end of the file (16 bytes per frame, in reverse order)</li>
+            <li>Calculate start and end positions for each frame based on footer entries</li>
+            <li>For each frame:
+                <ul>
+                    <li>Read 8-byte frame header (CRC + Unknown)</li>
+                    <li>Extract the payload up to the calculated end position</li>
+                </ul>
+            </li>
+        </ol>
+        
+        <div class="code-block">
+# Pseudocode for Version 2
+header_size = 32
+footer_entry_size = 16
+
+# Read all footer entries
+footer_entries = []
+position = file_size - footer_entry_size
+
+while position >= header_size:
+    entry = file[position:position+footer_entry_size]
+    frame_end_offset = int.from_bytes(entry[0:4], byteorder='little')
+    timestamp = struct.unpack('<d', entry[8:16])[0]
+    
+    footer_entries.append({
+        'end_offset': frame_end_offset,
+        'timestamp': convert_apple_nsdate(timestamp)
+    })
+    
+    position -= footer_entry_size
+    # Stop when we reach an invalid offset
+    if frame_end_offset < header_size:
+        break
+
+# Sort entries by end offset
+footer_entries.sort(key=lambda x: x['end_offset'])
+
+# Extract frames
+frame_start = header_size  # After the stream header
+for entry in footer_entries:
+    frame_end = entry['end_offset']
+    frame_data = file[frame_start:frame_end]
+    
+    # First 8 bytes are CRC + Unknown
+    crc = frame_data[0:4]
+    unknown = frame_data[4:8]
+    
+    # Rest is payload
+    payload = frame_data[8:]
+    
+    # Next frame starts after current one
+    frame_start = frame_end
+        </div>
+        
+        <h3>Step 3: Analyzing Protobuf Payload</h3>
+        <p>The payload of each frame typically contains Protobuf-serialized data. For in-depth analysis:</p>
+        <ol>
+            <li>Use Protobuf analysis tools to examine the structure</li>
+            <li>Try to identify common message types</li>
+            <li>Extract relevant information from the decoded Protobuf</li>
+        </ol>
+        
+        <h3>Forensically Important Timestamps</h3>
+        <p>Timestamps in BIOME are stored in Apple NS Date format (nanoseconds since January 1, 2001):</p>
+        <ul>
+            <li><strong>Version 1:</strong> TS Created (bytes 8-15) and TS Modified (bytes 16-23) in the frame header</li>
+            <li><strong>Version 2:</strong> Timestamp (8-byte double) in each footer entry</li>
+        </ul>
+        
+        <div class="code-block">
+# Converting Apple NS Date to readable date
+def convert_apple_nsdate(timestamp):
+    # Apple Reference Date: January 1, 2001, 00:00:00 UTC
+    reference_date = datetime(2001, 1, 1, 0, 0, 0)
+    
+    # Convert seconds to Datetime
+    date = reference_date + timedelta(seconds=timestamp)
+    
+    return date
+        </div>
+    </div>
+    
+    <script>
+        function switchTab(tabId) {
+            // Hide all tab contents
+            var tabContents = document.getElementsByClassName('tab-content');
+            for (var i = 0; i < tabContents.length; i++) {
+                tabContents[i].classList.remove('active');
+            }
+            
+            // Deactivate all tabs
+            var tabs = document.getElementsByClassName('tab');
+            for (var i = 0; i < tabs.length; i++) {
+                tabs[i].classList.remove('active');
+            }
+            
+            // Show selected tab content
+            document.getElementById(tabId).classList.add('active');
+            
+            // Activate tab button
+            var currentTab = document.querySelector('.tab[onclick="switchTab(\'' + tabId + '\')"]');
+            currentTab.classList.add('active');
+        }
+        
+        function toggleElement(elementId) {
+            var element = document.getElementById(elementId);
+            if (element.classList.contains('hidden')) {
+                element.classList.remove('hidden');
+            } else {
+                element.classList.add('hidden');
+            }
+        }
+        
+        // Interactive hex viewer with highlighting
+        function createInteractiveHexViewer() {
+            var hexViewers = document.querySelectorAll('.hex-viewer');
+            for (var i = 0; i < hexViewers.length; i++) {
+                var viewer = hexViewers[i];
+                var content = viewer.textContent;
+                
+                // Add tooltips
+                viewer.addEventListener('mouseover', function(e) {
+                    if (e.target.classList.contains('highlight')) {
+                        e.target.title = "Important indicator for BIOME version";
+                    }
+                });
+            }
+        }
+        
+        // Initialization on page load
+        window.onload = function() {
+            createInteractiveHexViewer();
+        };
+    </script>
+    
+    <footer style="margin-top: 50px; padding: 20px; background-color: #eee; text-align: center; border-radius: 5px;">
+        <p>Marc Brandt, HfPolBW, 2025</p>
+    </footer>
+</body>
+</html>
