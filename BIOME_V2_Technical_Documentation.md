@@ -17,14 +17,14 @@ BIOME Stream Version 2 is a binary file format used on iOS devices for storing s
 │ Frame 1                                 │ Offset 32 (BASE)
 │  ├─ CRC32 (4 Bytes)                     │
 │  ├─ Unknown (4 Bytes)                   │
-│  └─ Protobuf Payload (Variable)        │
+│  └─ Protobuf Payload (Variable)         │
 ├─────────────────────────────────────────┤
 │ Padding (0-15 Bytes, 0x00)              │
 ├─────────────────────────────────────────┤
 │ Frame 2                                 │
 │  ├─ CRC32 (4 Bytes)                     │
 │  ├─ Unknown (4 Bytes)                   │
-│  └─ Protobuf Payload (Variable)        │
+│  └─ Protobuf Payload (Variable)         │
 ├─────────────────────────────────────────┤
 │ Padding (0-15 Bytes, 0x00)              │
 ├─────────────────────────────────────────┤
